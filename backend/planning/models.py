@@ -12,3 +12,20 @@ class User(AbstractUser):
 
     def __str__(self):
         return f'{self.username} ({self.role})'
+
+
+class Classe(models.Model):
+    nom = models.CharField(max_length=100)
+    niveau = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.nom
+
+
+class Salle(models.Model):
+    nom_ou_numero = models.CharField(max_length=50)
+    capacite = models.PositiveIntegerField()
+    type = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.nom_ou_numero
