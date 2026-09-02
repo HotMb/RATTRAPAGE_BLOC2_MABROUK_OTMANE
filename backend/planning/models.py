@@ -29,3 +29,24 @@ class Salle(models.Model):
 
     def __str__(self):
         return self.nom_ou_numero
+
+
+class Intervenant(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='intervenant')
+    nom = models.CharField(max_length=100)
+    prenom = models.CharField(max_length=100)
+    email = models.EmailField()
+
+    def __str__(self):
+        return f'{self.prenom} {self.nom}'
+
+
+class Etudiant(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='etudiant')
+    nom = models.CharField(max_length=100)
+    prenom = models.CharField(max_length=100)
+    email = models.EmailField()
+    classe = models.ForeignKey(Classe, on_delete=models.PROTECT, related_name='etudiants')
+
+    def __str__(self):
+        return f'{self.prenom} {self.nom}'
