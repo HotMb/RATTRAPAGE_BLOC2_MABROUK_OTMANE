@@ -47,10 +47,11 @@ Open a terminal with access to your local MySQL server (e.g. `mysql -u root -p`)
 CREATE DATABASE planification_cours CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER 'planification_user'@'localhost' IDENTIFIED BY 'change-me-locally';
 GRANT ALL PRIVILEGES ON planification_cours.* TO 'planification_user'@'localhost';
+GRANT ALL PRIVILEGES ON test_planification_cours.* TO 'planification_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-Note: the user needs `ALL PRIVILEGES` (not just SELECT/INSERT/UPDATE/DELETE) because Django's test runner creates and drops a throwaway `test_planification_cours` database when running `python manage.py test`.
+Note: MySQL grants are per-database-name, not inherited by prefix — the second `GRANT` is required (not just `ALL PRIVILEGES` on the real database) because Django's test runner creates and drops a separate `test_planification_cours` database when running `python manage.py test`.
 
 - [ ] **Step 2: Create the Python virtual environment and install dependencies**
 
