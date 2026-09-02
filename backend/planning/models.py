@@ -50,3 +50,38 @@ class Etudiant(models.Model):
 
     def __str__(self):
         return f'{self.prenom} {self.nom}'
+
+
+class Cours(models.Model):
+    intitule = models.CharField(max_length=200)
+    classe = models.ForeignKey(Classe, on_delete=models.PROTECT, related_name='cours')
+    salle = models.ForeignKey(Salle, on_delete=models.PROTECT, related_name='cours')
+    intervenant = models.ForeignKey(Intervenant, on_delete=models.PROTECT, related_name='cours')
+    debut = models.DateTimeField()
+    fin = models.DateTimeField()
+
+    class Meta:
+        ordering = ['debut']
+
+    def __str__(self):
+        return f'{self.intitule} ({self.debut:%d/%m/%Y %H:%M})'
+
+
+def find_conflicting_cours(*, salle, classe, intervenant, debut, fin, exclude_pk=None):
+    overlapping = Cours.objects.filter(debut__lt=fin, fin__gt=debut)
+    if exclude_pk is not None:
+        overlapping = overlapping.exclude(pk=exclude_pk)
+
+    salle_conflict = overlapping.filter(salle=salle).first()
+    if salle_conflict:
+        return ('la salle', salle_conflict)
+
+    classe_conflict = overlapping.filter(classe=classe).first()
+    if classe_conflict:
+        return ('la classe', classe_conflict)
+
+    intervenant_conflict = overlapping.filter(intervenant=intervenant).first()
+    if intervenant_conflict:
+        return ("l'intervenant", intervenant_conflict)
+
+    return None
