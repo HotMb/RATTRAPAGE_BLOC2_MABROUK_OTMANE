@@ -1,7 +1,14 @@
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Classe, Salle, User, Intervenant, Etudiant
+from .models import Classe, Salle, User, Intervenant, Etudiant, Cours, find_conflicting_cours
+
+
+# DRF's default exception handler reads status_code off APIException subclasses directly.
+class ConflictError(APIException):
+    status_code = 409
+    default_code = 'conflict'
 
 
 class RoleTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -62,3 +69,37 @@ class EtudiantSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = User.objects.create_user(username=username, password=password, role=User.Role.ETUDIANT)
         return Etudiant.objects.create(user=user, **validated_data)
+
+
+class CoursSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cours
+        fields = ['id', 'intitule', 'classe', 'salle', 'intervenant', 'debut', 'fin']
+
+    def validate(self, attrs):
+        debut = attrs.get('debut', getattr(self.instance, 'debut', None))
+        fin = attrs.get('fin', getattr(self.instance, 'fin', None))
+        salle = attrs.get('salle', getattr(self.instance, 'salle', None))
+        classe = attrs.get('classe', getattr(self.instance, 'classe', None))
+        intervenant = attrs.get('intervenant', getattr(self.instance, 'intervenant', None))
+
+        if debut is not None and fin is not None and fin <= debut:
+            raise serializers.ValidationError(
+                {'fin': "L'heure de fin doit être postérieure à l'heure de début."}
+            )
+
+        if salle and classe and intervenant and debut and fin:
+            exclude_pk = self.instance.pk if self.instance else None
+            conflict = find_conflicting_cours(
+                salle=salle, classe=classe, intervenant=intervenant,
+                debut=debut, fin=fin, exclude_pk=exclude_pk,
+            )
+            if conflict:
+                ressource, cours_conflit = conflict
+                raise ConflictError(
+                    f"Conflit détecté : {ressource} est déjà occupé(e) par le cours "
+                    f"« {cours_conflit.intitule} » du "
+                    f"{cours_conflit.debut:%d/%m/%Y %H:%M} au {cours_conflit.fin:%d/%m/%Y %H:%M}."
+                )
+
+        return attrs

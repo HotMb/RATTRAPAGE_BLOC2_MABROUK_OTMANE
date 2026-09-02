@@ -1432,6 +1432,10 @@ class CoursSerializer(serializers.ModelSerializer):
 Append to `backend/planning/views.py`:
 
 ```python
+from datetime import datetime, timedelta
+
+from django.utils.timezone import make_aware
+
 from .models import Cours
 from .serializers import CoursSerializer
 
@@ -1450,9 +1454,10 @@ class CoursViewSet(viewsets.ModelViewSet):
             etudiant = getattr(user, 'etudiant', None)
             qs = qs.filter(classe=etudiant.classe) if etudiant else qs.none()
 
-        date = self.request.query_params.get('date')
-        if date:
-            qs = qs.filter(debut__date=date)
+        date_str = self.request.query_params.get('date')
+        if date_str:
+            day_start = make_aware(datetime.strptime(date_str, '%Y-%m-%d'))
+            qs = qs.filter(debut__gte=day_start, debut__lt=day_start + timedelta(days=1))
 
         if user.role == User.Role.ADMIN:
             for param, field in (('classe', 'classe_id'), ('salle', 'salle_id'), ('intervenant', 'intervenant_id')):
@@ -1464,6 +1469,8 @@ class CoursViewSet(viewsets.ModelViewSet):
 ```
 
 Note: `User` must be imported in `views.py` (`from .models import User, ...`).
+
+Note: the date filter deliberately avoids Django's `debut__date=date_str` lookup. On MySQL with `USE_TZ=True`, that lookup requires the server-side `CONVERT_TZ` function, which needs the `mysql.time_zone_name` tables populated (via `mysql_tzinfo_to_sql`, which isn't available out of the box on Windows) — without them `CONVERT_TZ` silently returns `NULL` and the filter matches nothing. Filtering with an explicit `debut__gte`/`debut__lt` range computed in Python sidesteps that requirement entirely and works on any MySQL install.
 
 - [ ] **Step 5: Register the route**
 
